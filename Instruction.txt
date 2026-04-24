@@ -1,0 +1,9 @@
+Pessoal, um adendo antes de utilizarem a automação:
+
+	- O arquivo '.xlsx' ou '.xls' deve estar na mesma pasta que os códigos '.py' e '.bat'. 
+	- O arquivo '.xlsx' ou '.xls' deve conter o nome 'Implementation Plan and Timeline'. 
+
+Somente esses dois pontos que devemos ter bastante atenção. 
+
+Ass,
+Mikhaël Jorge. (Time Systems)
