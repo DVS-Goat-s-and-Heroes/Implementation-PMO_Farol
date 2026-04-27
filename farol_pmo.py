@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Farol PMO - Traffic Light Report Generator
 Reads an Implementation Plan .xlsx and generates an HTML traffic light report.
@@ -31,19 +30,24 @@ STATUS_SCORE = {
     "on hold":      0.0,
 }
 
+# Lê a Planilha retorna o DataFrame
 def load_data(filepath: str) -> pd.DataFrame:
     df = pd.read_excel(filepath, sheet_name="Implementation Plan", header=None)
+    # Lemos a Tabela e nomeamos as colunas do DataFrame
     data = df.iloc[6:, [1, 2, 3, 4, 5, 6, 7, 8, 9]].copy()
     data.columns = ["task_id", "subtask_id", "task", "responsible",
                     "start_date", "end_date", "days", "status", "remarks"]
+    
+    # Lemos apenas onde 'task' está preenchido
     data = data[data["task"].notna() & (data["task"].astype(str).str.strip() != "")]
-    data = data[~data["task"].astype(str).str.contains("Task ID|Sub Task ID", na=False)]
+    data = data[~data["task"].astype(str).str.contains("Task ID|Sub Task ID", na=False)] # ????????
     data["task_id"]    = data["task_id"].astype(str).str.strip().replace("nan", "")
     data["subtask_id"] = data["subtask_id"].astype(str).str.strip().replace("nan", "")
     data["status_raw"] = data["status"].astype(str).str.strip()
     data["status_norm"]= data["status_raw"].str.lower().str.strip()
     data["start_date"] = pd.to_datetime(data["start_date"], errors="coerce")
     data["end_date"]   = pd.to_datetime(data["end_date"],   errors="coerce")
+    # Retorna o DataFrame lido
     return data.reset_index(drop=True)
 
 # ─── NOVA LÓGICA: Extração de Metadados do Cabeçalho ─────────────────────────
@@ -57,11 +61,11 @@ def get_project_metadata(filepath: str):
         responsible = "Não informado"
         
         for r_idx, row in df.iterrows():
-            # Interrompe a busca na linha 5 para NÃO invadir o cabeçalho da tabela de tarefas
+            # Interrompe a busca na linha 6 para NÃO invadir o cabeçalho da tabela de tarefas
             if r_idx > 5:
                 break
                 
-            row_list = row.tolist()
+            row_list = row.tolist() # Passa as colunas para a lista
             for i, cell in enumerate(row_list):
                 cell_str = str(cell).strip().lower()
                 
@@ -115,17 +119,18 @@ def get_milestone_date(data: pd.DataFrame, task_id: str) -> str:
         return fmt_date(row["end_date"].iloc[0])
     return "Não definido"
 
+# Função de
 def task_num(row) -> float | None:
     try:
-        tid = row["task_id"]
+        tid = row["task_id"] # TASK ID
         if tid:
-            return float(tid)
+            return float(tid) # Retorna a task_id
     except (ValueError, TypeError):
         pass
     try:
-        sid = row["subtask_id"]
+        sid = row["subtask_id"] # SUBTASK ID
         if sid:
-            return float(sid.split(".")[0])
+            return float(sid.split(".")[0]) # Retorna a task_id dessa subtask (o número inteiro do index)
     except (ValueError, TypeError):
         pass
     return None
@@ -175,15 +180,17 @@ def stage_dominant_color(rows: pd.DataFrame) -> str:
             return c
     return "gray"
 
+# Construindo os estágios (tasks)
 def build_stages(data: pd.DataFrame):
     data = data.copy()
-    data["_tnum"] = data.apply(task_num, axis=1)
+    data["_tnum"] = data.apply(task_num, axis=1) # Cria coluna de task number com os números das tasks
     
     stages = []
     
+    # Percorre o dicionário STAGE_WEIGHTS (label; weight; min; max)
     for conf in STAGE_WEIGHTS:
-        mask = data["_tnum"].notna() & (data["_tnum"] >= conf["min"]) & (data["_tnum"] <= conf["max"])
-        subset = data[mask].copy()
+        mask = data["_tnum"].notna() & (data["_tnum"] >= conf["min"]) & (data["_tnum"] <= conf["max"]) # Dos valores da coluna de task number, batemos com as 'conf' min e max                                                                                     
+        subset = data[mask].copy() # Passa o subset filtrado com base no peso das Tasks verificado
         
         tasks_out = []
         
@@ -193,14 +200,14 @@ def build_stages(data: pd.DataFrame):
             
             if tid or sid:
                 is_subtask = bool(sid)
-                current_id = sid if is_subtask else tid
+                current_id = sid if is_subtask else tid # Coloca o número da TASK / SUBTASK
                 
                 tasks_out.append({
                     "id": current_id, 
                     "is_subtask": is_subtask,
                     "name": str(row["task"]),
                     "responsible": str(row["responsible"]) if row["responsible"] else "",
-                    "start": row["start_date"],
+                    "start": row["start_date"], 
                     "end":   row["end_date"],
                     "status": row["status_raw"],
                     "status_norm": row["status_norm"],
@@ -549,7 +556,9 @@ function toggleTheme() {{
     return html
 
 def main():
-    filepath = sys.argv[1] if len(sys.argv) > 1 else "Implementation Plan and Timeline.xlsx"
+    
+    # Define o path
+    filepath = "Implementation Plan and Timeline.xlsx"
     if not os.path.exists(filepath):
         print(f"[ERRO] Arquivo não encontrado: {filepath}")
         sys.exit(1)
@@ -557,11 +566,11 @@ def main():
     print(f"[INFO] Lendo arquivo: {filepath}")
     
     # 1. Carrega os dados das tarefas
-    data = load_data(filepath)
-    stages = build_stages(data)
+    data = load_data(filepath) # Lê a Planilha e carrega em 'data'
+    stages = build_stages(data) # Configura os estágios
     
     # 2. Busca os metadados do cabeçalho do Excel e as datas dos milestones
-    latest_update, responsible = get_project_metadata(filepath)
+    latest_update, responsible = get_project_metadata(filepath) # PARAMOS AQUI
     go_live_date = get_milestone_date(data, "602")
     closure_date = get_milestone_date(data, "706")
     
