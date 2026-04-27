@@ -114,9 +114,9 @@ def get_project_metadata(filepath: str):
 # ─── NOVA LÓGICA: Extração de Datas Específicas ──────────────────────────────
 def get_milestone_date(data: pd.DataFrame, task_id: str) -> str:
     """Busca a data final (end_date) de uma tarefa específica pelo ID"""
-    row = data[data["task_id"] == str(task_id)]
+    row = data[data["task_id"] == str(task_id)] #Vai buscar a task ID inserida na hora da função
     if not row.empty:
-        return fmt_date(row["end_date"].iloc[0])
+        return fmt_date(row["end_date"].iloc[0]) #Chama a função para a formatação de data de XX.XX.XX para XX/XX/XX
     return "Não definido"
 
 # Função de
@@ -226,22 +226,22 @@ def build_stages(data: pd.DataFrame):
     return stages
 
 def overall_pct(stages) -> float:
-    return round(sum(s["pct"] * s["weight"] for s in stages), 1)
+    return round(sum(s["pct"] * s["weight"] for s in stages), 1) #Calcula, dentro de cada estágio, a label "pct" dela * a label "weight", retornando no cálculo uma só casa decimal 
 
-def get_overall_color(stages) -> str:
-    colors = [s["color"] for s in stages]
+def get_overall_color(stages) -> str: 
+    colors = [s["color"] for s in stages] #Filtra a label "color" dentro de stages
     for c in ["red", "yellow", "green", "blue"]:
-        if c in colors:
+        if c in colors: #Retorna a cor correspondente a etapa do projeto
             return c
-    return "gray"
+    return "gray" 
 
 def fmt_date(d) -> str:
-    if d is None or (isinstance(d, float) and pd.isna(d)):
+    if d is None or (isinstance(d, float) and pd.isna(d)): # Verifica se o data representa essas condições
         return "—"
     try:
         if pd.isna(d):
             return "—"
-        return pd.Timestamp(d).strftime("%d/%m/%Y")
+        return pd.Timestamp(d).strftime("%d/%m/%Y") #Retorna o dado inputado na formatação de data
     except Exception:
         return "—"
 
@@ -261,53 +261,56 @@ COLOR_LABEL = {
 }
 
 def render_html(stages, filepath: str, meta: dict) -> str:
-    overall = overall_pct(stages)
-    overall_color = get_overall_color(stages)
-    today_str = datetime.today().strftime("%d/%m/%Y")
-    filename = os.path.basename(filepath)
+    overall = overall_pct(stages) #Porcentagem total do projeto
+    overall_color = get_overall_color(stages) #A cor de andamento total do projeto
+    today_str = datetime.today().strftime("%d/%m/%Y") #Data atual na formatação XX/XX/XX
+    filename = os.path.basename(filepath) #nome do arquivo .html
 
     def dot(color, size=14):
         hex_ = COLOR_HEX.get(color, "#94a3b8")
-        return f'<span class="dot" style="background:{hex_};width:{size}px;height:{size}px;box-shadow:0 0 6px {hex_}88"></span>'
+        return f'<span class="dot" style="background:{hex_};width:{size}px;height:{size}px;box-shadow:0 0 6px {hex_}88"></span>' #Cria os pontos de cor do farol
 
     def build_farol(active_color):
         colors = ["gray", "red", "yellow", "green", "blue"]
         lights = ""
         for c in colors:
-            hex_ = COLOR_HEX.get(c, "#94a3b8")
-            style = f'background:{hex_}; opacity:1; box-shadow:0 0 8px {hex_}' if c == active_color else f'background:{hex_};'
-            lights += f'<div class="farol-luz" style="{style}"></div>'
-        return f'<div class="farol">{lights}</div>'
+            hex_ = COLOR_HEX.get(c, "#94a3b8") #Seta a cor padrão para cinza
+            style = f'background:{hex_}; opacity:1; box-shadow:0 0 8px {hex_}' if c == active_color else f'background:{hex_};' #Função para buscar a cor real da task
+            lights += f'<div class="farol-luz" style="{style}"></div>' #Soma na variável as luzes do farol
+        return f'<div class="farol">{lights}</div>' #Retorna o farol com a cor
 
-    def build_macro_farol(active_color):
+    def build_macro_farol(active_color): #Constrói o farol do projeto total
         items = ""
         for c, label in [('blue', 'Concluído'), ('green', 'On track'), ('red', 'Atrasado'), ('gray', 'Não iniciado')]:
             is_active = "active" if c == active_color else ""
             hex_ = COLOR_HEX.get(c, "#94a3b8")
             shadow = f"box-shadow: 0 0 8px {hex_};" if is_active else ""
             items += f'<div class="mf-item {is_active}"><div class="mf-light" style="background:{hex_}; {shadow}"></div><span>{label}</span></div>'
-        return f'<div class="macro-farol">{items}</div>'
+        return f'<div class="macro-farol">{items}</div>' #Retorna o andamento do farol do projeto total
 
     all_tbody_rows = ""
 
     for i, s in enumerate(stages):
-        hex_ = COLOR_HEX[s["color"]]
+        hex_ = COLOR_HEX[s["color"]] #Filtra na label "color" dentro de stages
 
         task_rows = ""
-        for t in s["tasks"]:
+        for t in s["tasks"]: #Para item dentro do dict "tasks" de stages
+            
+            print(f'\nDEBUGANDO\n{t}\nDEBUGANDO\n')
+            
             tc = COLOR_HEX.get(t["color"], "#94a3b8")
-            indent = "padding-left:28px" if t["is_subtask"] else ""
-            prefix = "└ " if t["is_subtask"] else ""
-            sr = "subtask-row" if t["is_subtask"] else ""
-            task_rows += (
-                f'<tr class="task-row {sr}">'
-                f'<td style="{indent}">{dot(t["color"], 10)} {prefix}<code>{t["id"]}</code></td>'
-                f'<td style="color: var(--text)">{t["name"]}</td>'
-                f'<td class="resp-col">{t["responsible"]}</td>'
-                f'<td class="date-col">{fmt_date(t["start"])}</td>'
-                f'<td class="date-col">{fmt_date(t["end"])}</td>'
-                f'<td><span class="status-badge" style="background:{tc}22;color:{tc};border:1px solid {tc}44">{t["status"]}</span></td>'
-                f'<td class="remarks-col">{t["remarks"]}</td>'
+            indent = "padding-left:28px" if t["is_subtask"] else "" #Cria um espaço se for uma subtask
+            prefix = "└ " if t["is_subtask"] else "" #Se for uma subtask, cria um "└" antes do nome dela
+            sr = "subtask-row" if t["is_subtask"] else "" #Cria uma subtask row 
+            task_rows += ( 
+                f'<tr class="task-row {sr}">' #Formatação da "linha" para modelo de task
+                f'<td style="{indent}">{dot(t["color"], 10)} {prefix}<code>{t["id"]}</code></td>' #Pega a cor da task
+                f'<td style="color: var(--text)">{t["name"]}</td>' #Nome da task
+                f'<td class="resp-col">{t["responsible"]}</td>' #Responsável
+                f'<td class="date-col">{fmt_date(t["start"])}</td>' #Data inicial
+                f'<td class="date-col">{fmt_date(t["end"])}</td>'#Data final
+                f'<td><span class="status-badge" style="background:{tc}22;color:{tc};border:1px solid {tc}44">{t["status"]}</span></td>' #Status da task
+                f'<td class="remarks-col">{t["remarks"]}</td>' #Comentários
                 f'</tr>'
             )
 
@@ -327,7 +330,7 @@ def render_html(stages, filepath: str, meta: dict) -> str:
             f'<th>ID</th><th>Task / Subtask</th><th>Responsável</th>'
             f'<th>Início</th><th>Fim</th><th>Status</th><th>Comentários</th>'
             f'</tr></thead><tbody>{task_rows}</tbody></table>'
-            f'</div></td></tr>'
+            f'</div></td></tr>' #Todas as rows de estágios juntos na macro
         )
 
     html = f"""<!DOCTYPE html>
@@ -570,9 +573,9 @@ def main():
     stages = build_stages(data) # Configura os estágios
     
     # 2. Busca os metadados do cabeçalho do Excel e as datas dos milestones
-    latest_update, responsible = get_project_metadata(filepath) # PARAMOS AQUI
-    go_live_date = get_milestone_date(data, "602")
-    closure_date = get_milestone_date(data, "706")
+    latest_update, responsible = get_project_metadata(filepath) 
+    go_live_date = get_milestone_date(data, "602") #Pega a data do GoLive na formatação XX/XX/XX
+    closure_date = get_milestone_date(data, "706") #Pega a data de Closure Date na formatação XX/XX/XX
     
     # 3. Consolida num dicionário para passar ao HTML
     meta = {
@@ -583,7 +586,7 @@ def main():
     }
     
     # 4. Renderiza enviando as tarefas e os metadados
-    html = render_html(stages, filepath, meta)
+    html = render_html(stages, filepath, meta) #Volta o .html feito 
 
     base = os.path.splitext(os.path.basename(filepath))[0]
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), base + "_farol.html")
