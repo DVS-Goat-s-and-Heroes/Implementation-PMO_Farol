@@ -33,6 +33,7 @@ STATUS_SCORE = {
 # Lê a Planilha retorna o DataFrame
 def load_data(filepath: str) -> pd.DataFrame:
     df = pd.read_excel(filepath, sheet_name="Implementation Plan", header=None)
+
     # Lemos a Tabela e nomeamos as colunas do DataFrame
     data = df.iloc[6:, [1, 2, 3, 4, 5, 6, 7, 8, 9]].copy()
     data.columns = ["task_id", "subtask_id", "task", "responsible",
@@ -48,6 +49,7 @@ def load_data(filepath: str) -> pd.DataFrame:
     data["start_date"] = pd.to_datetime(data["start_date"], errors="coerce")
     data["end_date"]   = pd.to_datetime(data["end_date"],   errors="coerce")
     # Retorna o DataFrame lido
+
     return data.reset_index(drop=True)
 
 # ─── NOVA LÓGICA: Extração de Metadados do Cabeçalho ─────────────────────────
@@ -123,17 +125,17 @@ def get_milestone_date(data: pd.DataFrame, task_id: str) -> str:
 def task_num(row) -> float | None:
     try:
         tid = row["task_id"] # TASK ID
-        if tid:
-            return float(tid) # Retorna a task_id
-    except (ValueError, TypeError):
-        pass
-    try:
         sid = row["subtask_id"] # SUBTASK ID
-        if sid:
+
+        if tid:
+            print("\n\n TID: ", tid, "\n\n")
+            return float(tid) # Retorna a task_id
+        elif sid:
+            print("\n\n SID: ", sid, "\n\n")
             return float(sid.split(".")[0]) # Retorna a task_id dessa subtask (o número inteiro do index)
+        
     except (ValueError, TypeError):
-        pass
-    return None
+        return "Noness"
 
 def status_color(status_norm: str, end_date=None) -> str:
     today = datetime.today()
@@ -183,26 +185,49 @@ def stage_dominant_color(rows: pd.DataFrame) -> str:
 # Construindo os estágios (tasks)
 def build_stages(data: pd.DataFrame):
     data = data.copy()
-    data["_tnum"] = data.apply(task_num, axis=1) # Cria coluna de task number com os números das tasks
+    data["_tnum"] = None
+
+    # Adicionamos os números das tasks
+    for idx, row in data.iterrows():
+        if idx == 0:
+            continue
+
+        data.loc[idx, "_tnum"] = task_num(row)
+        print("VALOR NA LINHA: ", data.loc[idx, "_tnum"])
+        input("")
+
+    #data.apply(task_num, axis=1) # Cria coluna de task number com os números das tasks
     
+    for idx, row in data.iterrows():
+        print("\n\n LINHA DATA:", row)
+        input("")
+
     stages = []
     
     # Percorre o dicionário STAGE_WEIGHTS (label; weight; min; max)
     for conf in STAGE_WEIGHTS:
         mask = data["_tnum"].notna() & (data["_tnum"] >= conf["min"]) & (data["_tnum"] <= conf["max"]) # Dos valores da coluna de task number, batemos com as 'conf' min e max                                                                                     
         subset = data[mask].copy() # Passa o subset filtrado com base no peso das Tasks verificado
-        
+
+        # for idx, row in subset.iterrows():
+            # print("\n\n LINHA DO SUBSET:", row)
+            # input("")
+
         tasks_out = []
         
-        for _, row in subset.iterrows():
-            tid = row["task_id"]
-            sid = row["subtask_id"]
-            
+        # Percorre as linhas do sub(Data)set filtrado para essa iteração do STAGE_WEIGHTS
+        for _, row in subset.iterrows(): # _ recupera a quantidade de linhas, row recupera os valores da linha percorrida
+
+            print("\n\nDEBUG  LINHA DO SUBSET\n", row, "\nDEBUG  LINHA DO SUBSET\n")
+
+            tid = row["task_id"] # recupera o task_id da linha
+            sid = row["subtask_id"] # recupera o subtask_id da linha
+
             if tid or sid:
-                is_subtask = bool(sid)
+                is_subtask = bool(sid) # Verifica se a linha lida do subset é uma subtask
                 current_id = sid if is_subtask else tid # Coloca o número da TASK / SUBTASK
                 
-                tasks_out.append({
+                tasks_out.append({ # Adiciona um dicionário à lista de outputs das Tasks (e Substasks também)
                     "id": current_id, 
                     "is_subtask": is_subtask,
                     "name": str(row["task"]),
@@ -215,7 +240,7 @@ def build_stages(data: pd.DataFrame):
                     "remarks": str(row["remarks"]) if pd.notna(row["remarks"]) else "",
                 })
 
-        stages.append({
+        stages.append({ # Adiciona um dicionário à lista de estágios
             "label": conf["label"],
             "weight": conf["weight"],
             "pct": pct_for_tasks(subset),
@@ -296,7 +321,6 @@ def render_html(stages, filepath: str, meta: dict) -> str:
         task_rows = ""
         for t in s["tasks"]: #Para item dentro do dict "tasks" de stages
             
-            print(f'\nDEBUGANDO\n{t}\nDEBUGANDO\n')
             
             tc = COLOR_HEX.get(t["color"], "#94a3b8")
             indent = "padding-left:28px" if t["is_subtask"] else "" #Cria um espaço se for uma subtask
