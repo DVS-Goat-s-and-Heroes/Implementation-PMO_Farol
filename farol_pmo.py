@@ -6,6 +6,7 @@ Usage: python3 farol_pmo.py <path_to_excel_file>
 
 import sys
 import os
+import math
 import pandas as pd
 from datetime import datetime, date
 
@@ -127,7 +128,7 @@ def task_num(row) -> float | None:
         tid = row["task_id"] # TASK ID
         sid = row["subtask_id"] # SUBTASK ID
 
-        if tid:
+        if tid and math.isnan(float(sid)):
             print("\n\n TID: ", tid, "\n\n")
             return float(tid) # Retorna a task_id
         elif sid:
@@ -193,14 +194,8 @@ def build_stages(data: pd.DataFrame):
             continue
 
         data.loc[idx, "_tnum"] = task_num(row)
-        print("VALOR NA LINHA: ", data.loc[idx, "_tnum"])
-        input("")
 
     #data.apply(task_num, axis=1) # Cria coluna de task number com os números das tasks
-    
-    for idx, row in data.iterrows():
-        print("\n\n LINHA DATA:", row)
-        input("")
 
     stages = []
     
@@ -219,12 +214,12 @@ def build_stages(data: pd.DataFrame):
         for _, row in subset.iterrows(): # _ recupera a quantidade de linhas, row recupera os valores da linha percorrida
 
             print("\n\nDEBUG  LINHA DO SUBSET\n", row, "\nDEBUG  LINHA DO SUBSET\n")
-
+            print("\nVALOR SUBTASK: ", row["subtask_id"])
             tid = row["task_id"] # recupera o task_id da linha
             sid = row["subtask_id"] # recupera o subtask_id da linha
 
             if tid or sid:
-                is_subtask = bool(sid) # Verifica se a linha lida do subset é uma subtask
+                is_subtask = not math.isnan(float(sid)) # Verifica se a linha lida do subset é uma subtask
                 current_id = sid if is_subtask else tid # Coloca o número da TASK / SUBTASK
                 
                 tasks_out.append({ # Adiciona um dicionário à lista de outputs das Tasks (e Substasks também)
